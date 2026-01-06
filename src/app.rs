@@ -2,17 +2,12 @@
 
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::*;
+use crate::tauri;
 
 static CSS: Asset = asset!("/assets/styles.css");
 static TAURI_ICON: Asset = asset!("/assets/tauri.svg");
 static DIOXUS_ICON: Asset = asset!("/assets/dioxus.png");
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
-}
 
 #[derive(Serialize, Deserialize)]
 struct GreetArgs<'a> {
@@ -23,15 +18,16 @@ pub fn App() -> Element {
     let mut name = use_signal(|| String::new());
     let mut greet_msg = use_signal(|| String::new());
 
-    let greet = move |_: FormEvent| async move {
+    let greet = move |e: FormEvent| async move {
+        e.prevent_default();
         if name.read().is_empty() {
             return;
         }
 
         let name = name.read();
-        let args = serde_wasm_bindgen::to_value(&GreetArgs { name: &*name }).unwrap();
+        let args = GreetArgs { name: &*name };
         // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-        let new_msg = invoke("greet", args).await.as_string().unwrap();
+        let new_msg: String = tauri::invoke("greet", &args).await;
         greet_msg.set(new_msg);
     };
 
